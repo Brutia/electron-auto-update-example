@@ -6,11 +6,49 @@ import {
   installVueDevtools
 } from 'vue-cli-plugin-electron-builder/lib'
 import { autoUpdater } from 'electron-updater'
+import log from 'electron-log';
+// autoUpdater.logger = require("electron-log")
+// autoUpdater.logger.transports.file.level = "debug"
+
+let updateChecked = false;
+
+function __delay__(timer) {
+  return new Promise(resolve => {
+      timer = timer || 2000;
+      setTimeout(function () {
+          resolve();
+      }, timer);
+  });
+};
+
+autoUpdater.on('checking-for-update', () => {
+  log.info('vérification des mises à jour')
+})
+autoUpdater.on('update-available', (ev, info) => {
+  log.info('mise à jour dispo')
+})
+autoUpdater.on('update-not-available', (ev, info) => {
+  log.info('pas de mise à jour dispo');
+  updateChecked = true;
+})
+autoUpdater.on('error', (ev, err) => {
+  log.info('erreur')
+})
+autoUpdater.on('download-progress', (ev, progressObj) => {
+  log.info('download.progress');
+})
+autoUpdater.on('update-downloaded', (ev, info) => {
+  log.info('mise à jour téléchargée');
+  autoUpdater.quitAndInstall();
+});
+
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win
+
+autoUpdater.checkForUpdates();
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -27,15 +65,17 @@ function createWindow() {
     }
   })
 
+  log.info('ici');
+
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
+    // log.info('ici1');
     win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
     if (!process.env.IS_TEST) win.webContents.openDevTools()
   } else {
     createProtocol('app')
     // Load the index.html when not in development
     win.loadURL('app://./index.html')
-    autoUpdater.checkForUpdatesAndNotify()
   }
 
   win.on('closed', () => {
@@ -77,7 +117,15 @@ app.on('ready', async () => {
     //   console.error('Vue Devtools failed to install:', e.toString())
     // }
   }
-  createWindow()
+  setTimeout(async function () {
+    //STOPT THE FUNCTION UNTIL CONDITION IS CORRECT
+    while (!updateChecked)
+      await __delay__(1000);
+
+    //WHEN CONDITION IS CORRECT THEN TRIGGER WILL CLICKED
+    createWindow()
+    
+  }, 1);
 })
 
 // Exit cleanly on request from parent process in development mode.
